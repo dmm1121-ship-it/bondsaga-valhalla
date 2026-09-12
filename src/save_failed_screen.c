@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_save_gba.h"
 #include "text.h"
 #include "main.h"
 #include "malloc.h"
@@ -385,6 +386,9 @@ static bool8 WipeSector(u16 sector)
 {
     u16 i, j;
     bool8 failed = TRUE;
+
+    if (!BsgGbaLegacyAccessAllowed())
+        return TRUE;
 
     // Attempt to wipe sector with an arbitrary attempt limit of 130
     for (i = 0; failed && i < 130; i++)
