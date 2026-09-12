@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  BASELINE_REF: 71c589a0822a8fbef8100c8f89bf8f051366c353
+  BASELINE_REF: 831c6ad4
   GAME_VERSION: EMERALD
   GAME_REVISION: 0
   GAME_LANGUAGE: ENGLISH
@@ -85,6 +85,8 @@ jobs:
         with:
           name: bondsaga-persistence-measurements
           path: |
+            pokeemerald.gba
+            pokeemerald.elf
             build/bondsaga-measurements/*.log
             build/bondsaga-measurements/*.json
             build/bondsaga-measurements/*.md
@@ -92,3 +94,20 @@ jobs:
             build/bondsaga-measurements/*.su
             pokeemerald.map
           if-no-files-found: warn
+
+  battle-bound-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils-arm-none-eabi gcc-arm-none-eabi libnewlib-arm-none-eabi libpng-dev python3
+      - name: Battle-Bound runtime tests in mGBA
+        run: make check -j$(nproc) -O TESTS="Battle-Bound"
+      - name: Persistence runtime tests in mGBA
+        run: make check -j$(nproc) -O TESTS="Bondsaga"
+      - name: Inherited support and guard regressions
+        run: |
+          make check -j$(nproc) -O TESTS="Helping Hand"
+          make check -j$(nproc) -O TESTS="Protect"
