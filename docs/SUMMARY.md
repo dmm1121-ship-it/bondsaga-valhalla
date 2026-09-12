@@ -2,6 +2,8 @@
 
 - [README](./README.md)
 - [FEATURES](./FEATURES.md)
+- [Bondsaga Design Bible V1](./DESIGN_BIBLE_V1.md)
+- [Bondsaga Technical Architecture V1](./TECHNICAL_ARCHITECTURE_V1.md)
 - [Installation](./INSTALL.md)
     - [Setting up WSL1 (Legacy Portion)](./legacy_WSL1_INSTALL.md)
     - [ChromeOS](./install/chromeos/CHROME_OS.md)
@@ -141,8 +143,7 @@
     - [1.1.x]()
         - [Version 1.1.1](changelogs/1.1.x/1.1.1.md)
         - [Version 1.1.0](changelogs/1.1.x/1.1.0.md)
-    - [1.0.x]()
-        - [Version 1.0.0](changelogs/1.0.x/1.0.0.md)
+    - [Version 1.0.0](changelogs/1.0.x/1.0.0.md)
     - [Pre-1.0.x]()
         - [Version 0.9.0](changelogs/0.9.x/0.9.0.md)
 - [Team Procedures]()
