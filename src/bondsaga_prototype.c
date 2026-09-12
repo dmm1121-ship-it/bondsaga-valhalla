@@ -40,6 +40,7 @@ static const struct WindowTemplate sWindows[] = {
 static const u16 sPalette[16] = { RGB_BLACK, RGB(2, 5, 10), RGB_WHITE, RGB(12, 16, 22) };
 static const u8 sColors[] = {1, 2, 3};
 static const u16 sSpecies[] = {SPECIES_COMBUSKEN, SPECIES_MARSHTOMP, SPECIES_GROVYLE};
+static const u16 sOrdinaryAttacks[] = {MOVE_EMBER, MOVE_WATER_GUN, MOVE_ABSORB};
 
 static void InitRoom(void);
 static void RoomFrame(void);
@@ -128,7 +129,7 @@ static void CreateOrdinary(struct Pokemon *mon, u16 index)
     struct BsgCreature source;
     BsgCreatureDecode(&source, sRecords[index], BSG_CREATURE_WIRE_SIZE, NULL);
     CreateMonWithIVs(mon, source.species, source.earnedLevel, source.serial, OTID_STRUCT_PLAYER_ID, 15);
-    SetMonMoveSlot(mon, MOVE_TACKLE, 0);
+    SetMonMoveSlot(mon, sOrdinaryAttacks[index], 0);
     SetMonMoveSlot(mon, MOVE_SWIFT, 1);
     SetMonMoveSlot(mon, MOVE_PROTECT, 2);
     SetMonMoveSlot(mon, MOVE_QUICK_ATTACK, 3);
@@ -152,11 +153,10 @@ static void StartBattle(void)
     CreateOrdinary(&partner, sRoster.bound);
     BsgBbCreateForm(&gParties[B_TRAINER_PLAYER][1], &partner, FALSE);
     CreateOrdinary(&gParties[B_TRAINER_OPPONENT_A][0], 2);
-    CreateOrdinary(&gParties[B_TRAINER_OPPONENT_A][2], 0);
     CreateOrdinary(&partner, 1);
     BsgBbCreateForm(&gParties[B_TRAINER_OPPONENT_A][1], &partner, TRUE);
     gPartiesCount[B_TRAINER_PLAYER] = 3;
-    gPartiesCount[B_TRAINER_OPPONENT_A] = 3;
+    gPartiesCount[B_TRAINER_OPPONENT_A] = 2;
     memset(&gTrainerBattleParameter, 0, sizeof(gTrainerBattleParameter));
     TRAINER_BATTLE_PARAM.opponentA = TRAINER_CALVIN_1;
     TRAINER_BATTLE_PARAM.isDoubleBattle = TRUE;

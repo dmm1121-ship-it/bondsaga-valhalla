@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_anim.h"
 #include "battle_controllers.h"
@@ -36,6 +37,11 @@ void AssignUsableGimmicks(void)
 // Returns whether a battler is able to use a gimmick. Checks consumption and gimmick specific functions.
 bool32 CanActivateGimmick(enum BattlerId battler, enum Gimmick gimmick)
 {
+    // Disposable Battle-Bound encounters do not opt into inherited Pokemon
+    // transformations. In particular, synthesized opponents lack the trainer
+    // loader's BLOCK_AI_DYNAMAX sentinel and otherwise Dynamax by default.
+    if (BsgBbActive())
+        return FALSE;
     return gGimmicksInfo[gimmick].CanActivate != NULL && gGimmicksInfo[gimmick].CanActivate(battler);
 }
 

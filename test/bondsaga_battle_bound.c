@@ -1,6 +1,7 @@
 #include "global.h"
 #include "bondsaga_battle_bound.h"
 #include "battle_util.h"
+#include "battle_gimmick.h"
 #include "test/battle.h"
 
 TEST("Battle-Bound designation validates canonical expedition references")
@@ -65,6 +66,9 @@ DOUBLE_BATTLE_TEST("Battle-Bound has independent actions and independently targe
         EXPECT(!BsgBbIsTrainer(GetBattlerAtPosition(B_POSITION_PLAYER_LEFT)));
         EXPECT_EQ(playerRight->ability, ABILITY_NONE);
         EXPECT(!CanBattlerSwitch(GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)));
+        for (enum BattlerId battler = 0; battler < MAX_BATTLERS_COUNT; battler++)
+            for (enum Gimmick gimmick = 0; gimmick < GIMMICKS_COUNT; gimmick++)
+                EXPECT(!CanActivateGimmick(battler, gimmick));
     }
 }
 
@@ -158,6 +162,27 @@ DOUBLE_BATTLE_TEST("Battle-Bound victory resolves after Bond Break and the final
         TURN { MOVE(playerLeft, MOVE_TACKLE, target: opponentLeft); }
     } THEN {
         EXPECT_EQ(gBattleOutcome, B_OUTCOME_WON);
+    }
+}
+
+DOUBLE_BATTLE_TEST("Battle-Bound Trainer can continue after the last normal creature falls")
+{
+    GIVEN {
+        BsgBbBegin();
+        PLAYER(SPECIES_WOBBUFFET) { HP(1); }
+        PLAYER(SPECIES_SMEARGLE);
+        OPPONENT(SPECIES_WOBBUFFET);
+        OPPONENT(SPECIES_SMEARGLE);
+    } WHEN {
+        TURN { MOVE(opponentLeft, MOVE_TACKLE, target: playerLeft); }
+        TURN { MOVE(playerRight, MOVE_SLASH, target: opponentRight); }
+    } SCENE {
+        MESSAGE("Wobbuffet fainted!");
+        HP_BAR(opponentRight);
+    } THEN {
+        EXPECT(gAbsentBattlerFlags & (1u << GetBattlerAtPosition(B_POSITION_PLAYER_LEFT)));
+        EXPECT(!BsgBbIsBroken(GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)));
+        EXPECT_EQ(gBattleOutcome, B_OUTCOME_PLAYER_TELEPORTED);
     }
 }
 
