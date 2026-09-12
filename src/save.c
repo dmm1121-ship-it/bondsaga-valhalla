@@ -3,6 +3,7 @@
 #include "gba/flash_internal.h"
 #include "fieldmap.h"
 #include "save.h"
+#include "bondsaga_save_gba.h"
 #include "task.h"
 #include "decompress.h"
 #include "load_save.h"
@@ -99,6 +100,9 @@ EWRAM_DATA struct SaveSector gSaveDataBuffer = {0}; // Buffer used for reading/w
 void ClearSaveData(void)
 {
     u16 i;
+
+    if (!BsgGbaLegacyAccessAllowed())
+        return;
 
     // Clear the full save two sectors at a time
     for (i = 0; i < SECTORS_COUNT / 2; i++)
@@ -231,6 +235,8 @@ static u8 HandleWriteSectorNBytes(u8 sectorId, u8 *data, u16 size)
 
 static u8 TryWriteSector(u8 sector, u8 *data)
 {
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
     if (ProgramFlashSectorAndVerify(sector, data)) // is damaged?
     {
         // Failed
@@ -317,6 +323,9 @@ static u8 HandleReplaceSector(u16 sectorId, const struct SaveSectorLocation *loc
     u16 size;
     u8 status;
 
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
+
     // Adjust sector id for current save slot
     sector = sectorId + gLastWrittenSector;
     sector %= NUM_SECTORS_PER_SLOT;
@@ -400,6 +409,8 @@ static u8 WriteSectorSignatureByte_NoOffset(u16 sectorId, const struct SaveSecto
     // Adjust sector id for current save slot
     // This first line lacking -1 is the only difference from WriteSectorSignatureByte
     u16 sector = sectorId + gLastWrittenSector;
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
     sector %= NUM_SECTORS_PER_SLOT;
     sector += NUM_SECTORS_PER_SLOT * (gSaveCounter % NUM_SAVE_SLOTS);
 
@@ -424,6 +435,8 @@ static u8 CopySectorSignatureByte(u16 sectorId, const struct SaveSectorLocation 
 {
     // Adjust sector id for current save slot
     u16 sector = sectorId + gLastWrittenSector - 1;
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
     sector %= NUM_SECTORS_PER_SLOT;
     sector += NUM_SECTORS_PER_SLOT * (gSaveCounter % NUM_SAVE_SLOTS);
 
@@ -448,6 +461,8 @@ static u8 WriteSectorSignatureByte(u16 sectorId, const struct SaveSectorLocation
 {
     // Adjust sector id for current save slot
     u16 sector = sectorId + gLastWrittenSector - 1;
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
     sector %= NUM_SECTORS_PER_SLOT;
     sector += NUM_SECTORS_PER_SLOT * (gSaveCounter % NUM_SAVE_SLOTS);
 
@@ -715,6 +730,9 @@ u8 HandleSavingData(u8 saveType)
     u8 i;
     u32 *backupVar = gTrainerHillVBlankCounter;
 
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
+
     gTrainerHillVBlankCounter = NULL;
     UpdateSaveAddresses();
     switch (saveType)
@@ -772,6 +790,11 @@ u8 HandleSavingData(u8 saveType)
 
 u8 TrySavingData(u8 saveType)
 {
+    if (!BsgGbaLegacyAccessAllowed())
+    {
+        gSaveAttemptStatus = SAVE_STATUS_ERROR;
+        return SAVE_STATUS_ERROR;
+    }
     if (gFlashMemoryPresent != TRUE)
     {
         gSaveAttemptStatus = SAVE_STATUS_ERROR;
@@ -880,6 +903,12 @@ u8 LoadGameSave(u8 saveType)
 {
     u8 status;
 
+    if (!BsgGbaLegacyAccessAllowed())
+    {
+        gSaveFileStatus = SAVE_STATUS_ERROR;
+        return SAVE_STATUS_ERROR;
+    }
+
     if (gFlashMemoryPresent != TRUE)
     {
         gSaveFileStatus = SAVE_STATUS_NO_FLASH;
@@ -919,6 +948,9 @@ u16 GetSaveBlocksPointersBaseOffset(void)
     u16 i, slotOffset;
     struct SaveSector *sector;
 
+    if (!BsgGbaLegacyAccessAllowed())
+        return 0;
+
     sector = gReadWriteSector = &gSaveDataBuffer;
     if (gFlashMemoryPresent != TRUE)
         return 0;
@@ -945,6 +977,9 @@ u32 TryReadSpecialSaveSector(u8 sector, u8 *dst)
     s32 size;
     u8 *savData;
 
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
+
     if (sector != SECTOR_ID_TRAINER_HILL && sector != SECTOR_ID_RECORDED_BATTLE)
         return SAVE_STATUS_ERROR;
 
@@ -967,6 +1002,9 @@ u32 TryWriteSpecialSaveSector(u8 sector, u8 *src)
     s32 size;
     u8 *savData;
     void *savDataBuffer;
+
+    if (!BsgGbaLegacyAccessAllowed())
+        return SAVE_STATUS_ERROR;
 
     if (sector != SECTOR_ID_TRAINER_HILL && sector != SECTOR_ID_RECORDED_BATTLE)
         return SAVE_STATUS_ERROR;
