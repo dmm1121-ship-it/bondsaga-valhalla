@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "bondsaga_save_gba.h"
 #include "load_save.h"
 #include "gba/flash_internal.h"
@@ -55,6 +56,9 @@ bool BsgGbaOpenIo(BsgIo *io)
 
 bool BsgGbaLegacyAccessAllowed(void)
 {
+    /* A disposable runtime party must never enter a legacy save, including
+     * recovery/auxiliary writers. Prototype 0.1 has no Save/Continue frontend. */
+    if (BsgPrototypeRunning()) return false;
     BsgIo io;
     if (!BsgGbaOpenIo(&io)) return false;
     /* Check every sector, not only a committed header: losing either first

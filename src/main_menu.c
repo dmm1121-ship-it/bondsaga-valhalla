@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "trainer_pokemon_sprites.h"
 #include "bg.h"
 #include "constants/rgb.h"
@@ -566,6 +567,11 @@ static void VBlankCB_MainMenu(void)
 
 void CB2_InitMainMenu(void)
 {
+    if (!IS_FRLG && !TESTING)
+    {
+        SetMainCallback2(CB2_BsgPrototype);
+        return;
+    }
     InitMainMenu(FALSE);
 }
 

@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_anim.h"
 #include "battle_anim_scripts.h"
@@ -1909,6 +1910,8 @@ bool32 HandleFaintedMonActions(void)
 
 bool32 HasNoMonsToSwitch(enum BattlerId battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
 {
+    if (BsgBbIsTrainer(battler))
+        return TRUE;
     u32 i, playerId, flankId;
     s32 lastId = GetAILastPartyIndex(battler); // + 1
     struct Pokemon *party = GetBattlerParty(battler);
