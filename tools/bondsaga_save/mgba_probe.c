@@ -3,6 +3,8 @@
  * imports are performed. Commands: run <frames> <keys>, shot <path>,
  * read <hex-address> <bytes>, quit. Screenshots are direct framebuffer output.
  */
+// mGBA's POSIX directory interface requires PATH_MAX with strict C11/glibc.
+#define _POSIX_C_SOURCE 200809L
 #include <mgba/flags.h>
 #include <mgba/core/core.h>
 #include <mgba/core/log.h>
