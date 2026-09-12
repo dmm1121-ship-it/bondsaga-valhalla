@@ -133,6 +133,9 @@ static BsgResult DecodeHeader(const uint8_t *p, BsgSnapshot *s)
     uint32_t end = BSG_BODY_OFFSET, lastId = 0;
     if (memcmp(p, "BONDSAGA", 8)) return BSG_INVALID;
     m->envelopeMajor = Get16(p + 8); m->envelopeMinor = Get16(p + 10);
+    /* New envelopes may assign formerly reserved header/directory bytes. Do
+     * not classify those bytes using V1 rules and roll back to an older bank. */
+    if (m->envelopeMajor != 1 || m->envelopeMinor) return BSG_UNSUPPORTED;
     if (Get16(p + 12) != 128 || Get16(p + 14) != 32 || Get16(p + 16) != 16
         || Get32(p + 60) != 128 || Get32(p + 64) != 512) return BSG_UNSUPPORTED;
     s->sectionCount = Get16(p + 18);

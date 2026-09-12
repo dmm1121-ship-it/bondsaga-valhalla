@@ -1,5 +1,7 @@
 #include "global.h"
 #include "bondsaga_foundation.h"
+#include "bondsaga_save_gba.h"
+#include "load_save.h"
 #include "test/test.h"
 
 TEST("Bondsaga CRC32C matches the standard check vector")
@@ -40,4 +42,15 @@ TEST("Bondsaga admitted save keeps the complete future-system reserve")
     EXPECT_EQ(BSG_PLAYER_BINDER_WIRE_SIZE, 256);
     EXPECT_EQ(BSG_FOUNDATION_MAX_BODY_BYTES, 54928);
     EXPECT_EQ(BSG_FOUNDATION_RESERVE_BYTES, 8944);
+}
+
+TEST("Bondsaga backend refuses a flash device that was not identified")
+{
+    BsgIo io;
+    bool8 identified = gFlashMemoryPresent;
+    bool opened;
+    gFlashMemoryPresent = FALSE;
+    opened = BsgGbaOpenIo(&io);
+    gFlashMemoryPresent = identified;
+    EXPECT_EQ(opened, false);
 }

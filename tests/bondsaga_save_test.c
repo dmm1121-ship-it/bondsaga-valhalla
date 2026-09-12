@@ -657,7 +657,7 @@ static void TestMalformedRanges(void)
 
 static void TestUnsupportedNewest(void)
 {
-    static const uint32_t shortFields[] = {8, 10, 22, 24, 26, 68, 70, 100, 102};
+    static const uint32_t shortFields[] = {22, 24, 26, 68, 70, 100, 102};
     static const uint32_t longFields[] = {28, 76, 80, 108};
     BsgSnapshot snapshot;
     bool recovered;
@@ -681,6 +681,16 @@ static void TestUnsupportedNewest(void)
         SetLogical32(1, longFields[i], 99);
         RepairSnapshotIntegrity(1);
         CHECK(BsgSelectSnapshot(&sIo, &sReader, &sWorkspace, &snapshot, NULL) == BSG_UNSUPPORTED);
+    }
+    for (i = 8; i <= 10; i += 2)
+    {
+        RestoreTwoSnapshots();
+        SetLogical16(1, i, 2);
+        SetLogical32(1, 112, 0x12345678); /* A future envelope can use old reserves. */
+        RepairSnapshotIntegrity(1);
+        CHECK(BsgSelectSnapshot(&sIo, &sReader, &sWorkspace, &snapshot, NULL) == BSG_UNSUPPORTED);
+        CHECK(BsgWriteSnapshot(&sIo, &sReader, &sSpec, &sWorkspace, &snapshot) == BSG_UNSUPPORTED);
+        CHECK(sFlash.erased == 0 && sFlash.programmed == 0);
     }
     RestoreTwoSnapshots();
     SetLogical16(1, 20, BSG_GAME_PART_II);
