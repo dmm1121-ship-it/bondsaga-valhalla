@@ -67,6 +67,21 @@ def shot(name):
 def pointer_is(value, name):
     return (value & ~1) in all_symbols.get(name, set())
 
+def heap_free():
+    # GBA MemBlock ABI: 16-byte header, allocated bit 0, 18-bit size.
+    head = symbols['gHeap']
+    node = head
+    free = 0
+    for _ in range(1000):
+        data = bytes.fromhex(command(f'read {node:x} 16'))
+        if not (int.from_bytes(data[:2], 'little') & 1):
+            free += int.from_bytes(data[4:8], 'little') & 0x3ffff
+        node = int.from_bytes(data[12:16], 'little')
+        if node == head:
+            return free
+        assert head <= node < head + 0x1c500, 'Malformed heap chain'
+    raise AssertionError('Heap chain did not terminate')
+
 report = {'actions': [0, 0], 'targets': [], 'bond_break_seen': False}
 try:
     for _ in range(30):
@@ -76,6 +91,7 @@ try:
     assert integer('sRunning') == 1, 'Prototype did not boot'
     run(120)
     records = read('sRecords', 336)
+    report['room_heap_free'] = heap_free()
     assert integer('sRoster', 2, 784) == 0
     shot('01-room')
     for _ in range(args.bound):
@@ -134,6 +150,8 @@ try:
             if pointer_is(funcs[battler], 'HandleInputChooseTarget'):
                 target = integer('gMultiUsePlayerCursor')
                 desired = 3 if (battler == 2 or args.focus) and not (broken & 8) else 1
+                if integer('gAbsentBattlerFlags') & (1 << desired):
+                    desired = 1 if desired == 3 else 3
                 if target != desired:
                     tap(32, 3)  # LEFT cycles target positions.
                 else:
@@ -163,6 +181,8 @@ try:
     assert read('sRecords', 336) == records, 'Canonical records changed'
     assert integer('sRoster', 2, 784) == args.bound, 'Bound designation changed'
     assert integer('gPartiesCount') == 0, 'Runtime party leaked into room'
+    report['return_room_heap_free'] = heap_free()
+    assert report['return_room_heap_free'] == report['room_heap_free'], 'Battle allocation retained on return'
     shot('07-result')
     tap(4)
     assert integer('sRoster', 2, 784) == (args.bound + 1) % 3

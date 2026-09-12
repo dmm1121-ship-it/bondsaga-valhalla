@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_ai_main.h"
 #include "battle_ai_util.h"
@@ -164,7 +165,9 @@ void InitBattleControllers(void)
     else
         RecordedBattle_Init(B_RECORD_MODE_PLAYBACK);
 
-    if (!(gBattleTypeFlags & BATTLE_TYPE_RECORDED))
+    // The disposable prototype has no replay/save frontend. Do not retain a
+    // second party copy containing the temporary Trainer adapters on exit.
+    if (!(gBattleTypeFlags & BATTLE_TYPE_RECORDED) && !BsgBbActive())
         RecordedBattle_SaveParties();
 
     InitBtlControllersInternal();

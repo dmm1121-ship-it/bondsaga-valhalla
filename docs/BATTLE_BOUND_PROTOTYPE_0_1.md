@@ -48,7 +48,10 @@ Pokémon-compatible Trainer adapter. The enemy stages an ordinary creature and
 its own adapter. Right-hand battlefield positions identify Trainer roles;
 species IDs never identify those roles. Ownership order and serials do not
 change. The room clears all runtime parties on exit and does not write back
-battle HP, EXP, exhaustion, rewards or a fake Trainer record.
+battle HP, EXP, exhaustion, rewards or a fake Trainer record. The inherited
+2,400-byte replay party backup is skipped; no extra copy of the adapters is
+retained after battle. The smoke check verifies equal free heap space before
+and after the encounter.
 
 The adapter uses an existing Smeargle compatibility shell, with explicit human
 Youngster graphics and a plain Armament bar, a TRAINER/RIVAL-ARM nickname,
