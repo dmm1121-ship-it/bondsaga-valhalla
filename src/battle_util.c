@@ -11174,6 +11174,8 @@ struct PartyState *GetBattlerPartyState(enum BattlerId battler)
 
 void SetValuesOnFaint(enum BattlerId battler)
 {
+    if (BsgBbBreak(battler))
+        return;
     gHitMarker |= HITMARKER_FAINTED(battler);
     gBattleStruct->eventState.faintedAction = 0;
     gBattlerFainted = battler;

@@ -84,8 +84,8 @@ void BsgBbCreateForm(struct Pokemon *runtime, const struct Pokemon *partner, boo
     CreateMonWithIVs(runtime, SPECIES_SMEARGLE, BSG_BB_PROTOTYPE_LEVEL, 0, OTID_STRUCT_PLAYER_ID, 0);
     BsgBbDeriveStats(&stats, BSG_BB_PROTOTYPE_LEVEL, partner);
     SetMonData(runtime, MON_DATA_NICKNAME, enemy ? COMPOUND_STRING("RIVAL-ARM") : COMPOUND_STRING("TRAINER"));
-    SetMonData(runtime, MON_DATA_HP, &stats.hp);
     SetMonData(runtime, MON_DATA_MAX_HP, &stats.hp);
+    SetMonData(runtime, MON_DATA_HP, &stats.hp);
     SetMonData(runtime, MON_DATA_ATK, &stats.attack);
     SetMonData(runtime, MON_DATA_DEF, &stats.defense);
     SetMonData(runtime, MON_DATA_SPEED, &stats.speed);

@@ -55,12 +55,11 @@ DOUBLE_BATTLE_TEST("Battle-Bound has independent actions and independently targe
     } WHEN {
         TURN { MOVE(playerLeft, MOVE_TACKLE, target: opponentLeft); MOVE(playerRight, MOVE_SLASH, target: opponentRight); }
         TURN { MOVE(opponentLeft, MOVE_TACKLE, target: playerRight); MOVE(opponentRight, MOVE_SLASH, target: playerLeft); }
-    } SCENE {
-        HP_BAR(opponentRight);
-        HP_BAR(opponentLeft);
-        HP_BAR(playerLeft);
-        HP_BAR(playerRight);
     } THEN {
+        EXPECT_LT(playerLeft->hp, playerLeft->maxHP);
+        EXPECT_LT(playerRight->hp, playerRight->maxHP);
+        EXPECT_LT(opponentLeft->hp, opponentLeft->maxHP);
+        EXPECT_LT(opponentRight->hp, opponentRight->maxHP);
         EXPECT(BsgBbIsTrainer(GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)));
         EXPECT(BsgBbIsTrainer(GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT)));
         EXPECT(!BsgBbIsTrainer(GetBattlerAtPosition(B_POSITION_PLAYER_LEFT)));
@@ -112,10 +111,13 @@ DOUBLE_BATTLE_TEST("Battle-Bound player Bond Break leaves reserves for the creat
         MESSAGE("Bond Break! Smeargle's Armament ends!");
         HP_BAR(opponentLeft);
     } THEN {
-        EXPECT(BsgBbIsBroken(GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)));
+        EXPECT_EQ(BsgBbActive(), TRUE);
+        EXPECT_EQ(BsgBbIsTrainer(GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)), TRUE);
+        EXPECT_EQ(BsgBbIsBroken(GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)), TRUE);
         EXPECT(gAbsentBattlerFlags & (1u << GetBattlerAtPosition(B_POSITION_PLAYER_RIGHT)));
         EXPECT_EQ(gBattlerPartyIndexes[GetBattlerAtPosition(B_POSITION_PLAYER_LEFT)], 2);
-        EXPECT_EQ(gBattleOutcome, 0);
+        // The test runner ends the specified turns with a synthetic escape.
+        EXPECT_EQ(gBattleOutcome, B_OUTCOME_PLAYER_TELEPORTED);
     }
 }
 
@@ -135,9 +137,11 @@ DOUBLE_BATTLE_TEST("Battle-Bound enemy Bond Break continues without filling the 
         MESSAGE("Bond Break! The opposing Smeargle's Armament ends!");
         HP_BAR(playerLeft);
     } THEN {
-        EXPECT(BsgBbIsBroken(GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT)));
+        EXPECT_EQ(BsgBbActive(), TRUE);
+        EXPECT_EQ(BsgBbIsTrainer(GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT)), TRUE);
+        EXPECT_EQ(BsgBbIsBroken(GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT)), TRUE);
         EXPECT(gAbsentBattlerFlags & (1u << GetBattlerAtPosition(B_POSITION_OPPONENT_RIGHT)));
-        EXPECT_EQ(gBattleOutcome, 0);
+        EXPECT_EQ(gBattleOutcome, B_OUTCOME_PLAYER_TELEPORTED);
     }
 }
 

@@ -11,6 +11,7 @@
 #include "overworld.h"
 #include "palette.h"
 #include "sprite.h"
+#include "scanline_effect.h"
 #include "string_util.h"
 #include "task.h"
 #include "text.h"
@@ -86,6 +87,9 @@ static void VBlank(void)
 static void InitRoom(void)
 {
     SetVBlankCallback(NULL);
+    SetHBlankCallback(NULL);
+    SetMainCallback1(NULL);
+    ScanlineEffect_Stop();
     SetGpuReg(REG_OFFSET_DISPCNT, 0);
     ResetTasks();
     ResetSpriteData();
@@ -93,6 +97,8 @@ static void InitRoom(void)
     ResetPaletteFade();
     ResetBgsAndClearDma3BusyFlags(0);
     InitBgsFromTemplates(0, &sBg, 1);
+    ChangeBgX(0, 0, BG_COORD_SET);
+    ChangeBgY(0, 0, BG_COORD_SET);
     memset(sTilemap, 0, sizeof(sTilemap));
     SetBgTilemapBuffer(0, sTilemap);
     InitWindows(sWindows);

@@ -1,4 +1,7 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
+
+extern const u8 BattleScript_BsgBondBreak[];
 #include "battle.h"
 #include "battle_arena.h"
 #include "battle_environment.h"
@@ -3728,7 +3731,7 @@ static enum MoveEndResult MoveEndFaintBlock(struct BattleCalcValues *cv)
         case FAINT_BLOCK_FAINT_TARGET:
             TryUpdateEvolutionTracker(IF_DEFEAT_X_WITH_ITEMS, 1, MOVE_NONE);
             SetValuesOnFaint(cv->battlerDef);
-            BattleScriptCall(BattleScript_FaintBattler);
+            BattleScriptCall(BsgBbIsTrainer(cv->battlerDef) ? BattleScript_BsgBondBreak : BattleScript_FaintBattler);
             result = MOVEEND_RESULT_RUN_SCRIPT;
             gBattleStruct->eventState.moveEndBlock++;
             break;

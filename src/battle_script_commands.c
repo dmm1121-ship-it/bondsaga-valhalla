@@ -1906,11 +1906,9 @@ static void Cmd_tryfaintmon(void)
                 }
             }
 
-            bool32 bondBreak = BsgBbBreak(battler);
-            if (!bondBreak)
-                SetValuesOnFaint(battler);
+            SetValuesOnFaint(battler);
             BattleScriptPush(cmd->nextInstr);
-            gBattlescriptCurrInstr = bondBreak ? BattleScript_BsgBondBreak : BattleScript_FaintBattler;
+            gBattlescriptCurrInstr = BsgBbIsTrainer(battler) ? BattleScript_BsgBondBreak : BattleScript_FaintBattler;
         }
         else
         {
