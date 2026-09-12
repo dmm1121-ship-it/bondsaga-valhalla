@@ -1,0 +1,94 @@
+name: Bondsaga persistence
+
+on:
+  push:
+    branches:
+      - valhalla-core
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BASELINE_REF: 71c589a0822a8fbef8100c8f89bf8f051366c353
+  GAME_VERSION: EMERALD
+  GAME_REVISION: 0
+  GAME_LANGUAGE: ENGLISH
+  COMPARE: 0
+  UNUSED_ERROR: 1
+  DEPRECATED_ERROR: 1
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test serializers, validation, transactions, and synthetic transfer
+        run: python3 tools/bondsaga_save/run_tests.py --cc=gcc --sanitize
+
+  rom-measurements:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install ARM and asset build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils-arm-none-eabi gcc-arm-none-eabi libnewlib-arm-none-eabi libpng-dev python3
+      - name: Build approved baseline and candidate with the same toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/bondsaga-measurements
+          git worktree add --detach "$RUNNER_TEMP/bondsaga-baseline" "$BASELINE_REF"
+          make -C "$RUNNER_TEMP/bondsaga-baseline" -j"$(nproc)" -O all 2>&1 | tee build/bondsaga-measurements/baseline-build.log
+          make -j"$(nproc)" -O all 2>&1 | tee build/bondsaga-measurements/current-build.log
+      - name: Measure ROM regions and compiled foundation objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          for object in build/emerald/src/bondsaga_*.o; do
+            args+=(--object "$object")
+          done
+          python3 tools/bondsaga_save/measure_build.py \
+            --baseline-log build/bondsaga-measurements/baseline-build.log \
+            --current-log build/bondsaga-measurements/current-build.log \
+            --baseline-rom "$RUNNER_TEMP/bondsaga-baseline/pokeemerald.gba" \
+            --current-rom pokeemerald.gba \
+            --baseline-ref "$BASELINE_REF" \
+            --current-ref "$(git rev-parse HEAD)" \
+            --output-dir build/bondsaga-measurements "${args[@]}"
+          cat build/bondsaga-measurements/measurements.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect ARM stack-usage estimates for the foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for source in src/bondsaga_*.c; do
+            name="$(basename "$source" .c)"
+            arm-none-eabi-gcc -c -std=gnu17 -mthumb -mthumb-interwork -O2 \
+              -mabi=apcs-gnu -mtune=arm7tdmi -march=armv4t -fstack-usage \
+              -iquote include -DEMERALD -DMODERN=1 -DTESTING=0 "$source" \
+              -o "build/bondsaga-measurements/$name.o"
+          done
+          cat build/bondsaga-measurements/*.su > build/bondsaga-measurements/stack-usage.txt
+          arm-none-eabi-gcc -c -std=gnu17 -mthumb -O2 -mabi=apcs-gnu \
+            -march=armv4t -iquote include tools/bondsaga_save/layout_probe.c \
+            -o build/bondsaga-measurements/layout_probe.o
+          arm-none-eabi-nm --radix=d -S --size-sort build/bondsaga-measurements/layout_probe.o \
+            > build/bondsaga-measurements/type-layout.txt
+      - name: Preserve build logs and measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bondsaga-persistence-measurements
+          path: |
+            build/bondsaga-measurements/*.log
+            build/bondsaga-measurements/*.json
+            build/bondsaga-measurements/*.md
+            build/bondsaga-measurements/*.txt
+            build/bondsaga-measurements/*.su
+            pokeemerald.map
+          if-no-files-found: warn
