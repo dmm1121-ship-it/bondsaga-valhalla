@@ -8,6 +8,7 @@
 - [Persistent-data Foundation V1](./PERSISTENCE_FOUNDATION_V1.md)
 - [Battle-Bound Specification V1](./BATTLE_BOUND_SPEC_V1.md)
 - [Battle-Bound Prototype 0.1](./BATTLE_BOUND_PROTOTYPE_0_1.md)
+- [Visual Production Architecture V1 (proposal)](./VISUAL_PRODUCTION_ARCHITECTURE_V1.md)
 - [Installation](./INSTALL.md)
     - [Setting up WSL1 (Legacy Portion)](./legacy_WSL1_INSTALL.md)
     - [ChromeOS](./install/chromeos/CHROME_OS.md)
