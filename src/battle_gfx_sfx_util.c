@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_controllers.h"
 #include "battle_ai_main.h"
@@ -622,6 +623,8 @@ bool8 IsBattleSEPlaying(enum BattlerId battler)
 
 void BattleLoadMonSpriteGfx(struct Pokemon *mon, enum BattlerId battler)
 {
+    if (BsgBbLoadGraphics(battler))
+        return;
     u32 personalityValue, paletteOffset;
     bool32 isShiny;
     enum Species species;

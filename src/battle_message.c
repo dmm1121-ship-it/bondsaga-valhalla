@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_anim.h"
 #include "battle_ai_record.h"
@@ -2813,6 +2814,8 @@ void BufferStringBattle(enum StringID stringID, enum BattlerId battler)
         break;
     }
 
+    if (stringID == STRINGID_BATTLERFAINTED && BsgBbIsTrainer(gBattleScripting.battler))
+        stringPtr = COMPOUND_STRING("Bond Break!\n{B_SCR_NAME_WITH_PREFIX}'s Armament ends!\p");
     BattleStringExpandPlaceholdersToDisplayedString(stringPtr);
 }
 

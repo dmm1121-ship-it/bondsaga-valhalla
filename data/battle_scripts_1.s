@@ -2705,6 +2705,14 @@ BattleScript_EffectCamouflage::
 	waitmessage B_WAIT_TIME_LONG
 	goto BattleScript_MoveEnd
 
+BattleScript_BsgBondBreak::
+	dofaintanimation BS_FAINTED
+	copybyte sBATTLER, gBattlerFainted
+	printstring STRINGID_BATTLERFAINTED
+	cleareffectsonfaint BS_FAINTED
+	waitmessage B_WAIT_TIME_LONG
+	return
+
 BattleScript_FaintBattler::
 	tryillusionoff BS_FAINTED
 	undodynamax BS_FAINTED

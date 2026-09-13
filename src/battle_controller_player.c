@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_anim.h"
 #include "battle_arena.h"
@@ -304,6 +305,16 @@ static void HandleInputChooseAction(enum BattlerId battler)
 
     if (JOY_NEW(A_BUTTON))
     {
+        if (BsgBbActive() && (gActionSelectionCursor[battler] == 1
+            || gActionSelectionCursor[battler] == 3
+            || (gActionSelectionCursor[battler] == 2 && BsgBbIsTrainer(battler))))
+        {
+            PlaySE(SE_FAILURE);
+            BattlePutTextOnWindow(BsgBbIsTrainer(battler)
+                ? COMPOUND_STRING("Trainer: choose FIGHT.\nNo Rebinding in this test.")
+                : COMPOUND_STRING("Choose FIGHT or PARTY.\nNo items or fleeing in this test."), B_WIN_ACTION_PROMPT);
+            return;
+        }
         PlaySE(SE_SELECT);
         TryHideLastUsedBall();
 

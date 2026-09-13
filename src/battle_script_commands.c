@@ -1,4 +1,7 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
+
+extern const u8 BattleScript_BsgBondBreak[];
 #include "battle.h"
 #include "battle_hold_effects.h"
 #include "battle_message.h"
@@ -1905,7 +1908,7 @@ static void Cmd_tryfaintmon(void)
 
             SetValuesOnFaint(battler);
             BattleScriptPush(cmd->nextInstr);
-            gBattlescriptCurrInstr = BattleScript_FaintBattler;
+            gBattlescriptCurrInstr = BsgBbIsTrainer(battler) ? BattleScript_BsgBondBreak : BattleScript_FaintBattler;
         }
         else
         {
@@ -2100,6 +2103,8 @@ FEATURE_FLAG_ASSERT(I_EXP_SHARE_FLAG, YouNeedToSetTheExpShareFlagToAnUnusedFlag)
 
 static bool32 BattleTypeAllowsExp(void)
 {
+    if (BsgBbActive())
+        return FALSE;
     if (RECORDED_WILD_BATTLE)
         return TRUE;
     else if (gBattleTypeFlags &
@@ -3308,6 +3313,8 @@ static void Cmd_switchinanim(void)
 
 bool32 CanBattlerSwitch(enum BattlerId battler)
 {
+    if (BsgBbIsTrainer(battler))
+        return FALSE;
     s32 lastMonId;
     enum BattlerId battlerIn1, battlerIn2;
     struct Pokemon *party = GetBattlerParty(battler);

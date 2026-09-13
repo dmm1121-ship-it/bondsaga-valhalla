@@ -1,4 +1,5 @@
 #include "global.h"
+#include "bondsaga_battle_bound.h"
 #include "battle.h"
 #include "battle_anim.h"
 #include "battle_anim_scripts.h"
@@ -1909,6 +1910,8 @@ bool32 HandleFaintedMonActions(void)
 
 bool32 HasNoMonsToSwitch(enum BattlerId battler, u8 partyIdBattlerOn1, u8 partyIdBattlerOn2)
 {
+    if (BsgBbIsTrainer(battler))
+        return TRUE;
     u32 i, playerId, flankId;
     s32 lastId = GetAILastPartyIndex(battler); // + 1
     struct Pokemon *party = GetBattlerParty(battler);
@@ -5625,6 +5628,12 @@ enum Obedience GetAttackerObedienceForAction(void)
     s32 calc;
     u8 obedienceLevel = 0;
     u8 levelReferenced;
+
+    // Bondsaga commands never enter Pokemon badge/level/ownership obedience.
+    // This includes the battle-only Trainer adapter, normal creatures and AI.
+    // Sleep and other legal move/status restrictions have separate cancelers.
+    if (BsgBbActive())
+        return OBEYS;
 
     if (gBattleTypeFlags & (BATTLE_TYPE_LINK | BATTLE_TYPE_RECORDED_LINK))
         return OBEYS;
@@ -11171,6 +11180,8 @@ struct PartyState *GetBattlerPartyState(enum BattlerId battler)
 
 void SetValuesOnFaint(enum BattlerId battler)
 {
+    if (BsgBbBreak(battler))
+        return;
     gHitMarker |= HITMARKER_FAINTED(battler);
     gBattleStruct->eventState.faintedAction = 0;
     gBattlerFainted = battler;

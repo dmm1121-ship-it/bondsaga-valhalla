@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  BASELINE_REF: 71c589a0822a8fbef8100c8f89bf8f051366c353
+  BASELINE_REF: 831c6ad4
   GAME_VERSION: EMERALD
   GAME_REVISION: 0
   GAME_LANGUAGE: ENGLISH
@@ -36,7 +36,7 @@ jobs:
       - name: Install ARM and asset build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends binutils-arm-none-eabi gcc-arm-none-eabi libnewlib-arm-none-eabi libpng-dev python3
+          sudo apt-get install -y --no-install-recommends binutils-arm-none-eabi gcc-arm-none-eabi libnewlib-arm-none-eabi libpng-dev libmgba-dev python3
       - name: Build approved baseline and candidate with the same toolchain
         shell: bash
         run: |
@@ -62,6 +62,18 @@ jobs:
             --current-ref "$(git rev-parse HEAD)" \
             --output-dir build/bondsaga-measurements "${args[@]}"
           cat build/bondsaga-measurements/measurements.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Boot and play the actual ROM through mGBA button input
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -std=c11 -O2 tools/bondsaga_save/mgba_probe.c -lmgba -lpng -o build/mgba-probe
+          arm-none-eabi-nm -n pokeemerald.elf > build/bondsaga-measurements/symbols.txt
+          for bound in 0 1 2; do
+            python3 tools/bondsaga_save/prototype_smoke.py \
+              --probe build/mgba-probe --rom pokeemerald.gba \
+              --symbols build/bondsaga-measurements/symbols.txt \
+              --output "build/bondsaga-smoke/bound-$bound" --bound "$bound"
+          done
       - name: Collect ARM stack-usage estimates for the foundation
         shell: bash
         run: |
@@ -85,10 +97,31 @@ jobs:
         with:
           name: bondsaga-persistence-measurements
           path: |
+            pokeemerald.gba
+            pokeemerald.elf
             build/bondsaga-measurements/*.log
             build/bondsaga-measurements/*.json
             build/bondsaga-measurements/*.md
             build/bondsaga-measurements/*.txt
             build/bondsaga-measurements/*.su
+            build/bondsaga-smoke/
             pokeemerald.map
           if-no-files-found: warn
+
+  battle-bound-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils-arm-none-eabi gcc-arm-none-eabi libnewlib-arm-none-eabi libpng-dev python3
+      - name: Battle-Bound runtime tests in mGBA
+        run: make check -j$(nproc) -O TESTS="Battle-Bound"
+      - name: Persistence runtime tests in mGBA
+        run: make check -j$(nproc) -O TESTS="Bondsaga"
+      - name: Inherited support, guard and Sleep regressions
+        run: |
+          make check -j$(nproc) -O TESTS="Helping Hand"
+          make check -j$(nproc) -O TESTS="Protect"
+          make check -j$(nproc) -O TESTS="Hypnosis inflicts"
