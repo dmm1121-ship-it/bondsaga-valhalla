@@ -2,7 +2,134 @@
 #include "bondsaga_battle_bound.h"
 #include "battle_util.h"
 #include "battle_gimmick.h"
+#include "event_data.h"
+#include "random.h"
+#include "string_util.h"
 #include "test/battle.h"
+
+// The scripted battle runner uses recorded/link flags, which bypass obedience.
+// Exercise the real policy separately with live trainer flags and no badges.
+DOUBLE_BATTLE_TEST("Battle-Bound obedience policy ignores level and ownership without consuming RNG")
+{
+    GIVEN {
+        BsgBbBegin();
+        PLAYER(SPECIES_WOBBUFFET);
+        PLAYER(SPECIES_SMEARGLE);
+        OPPONENT(SPECIES_WOBBUFFET);
+        OPPONENT(SPECIES_SMEARGLE);
+    } WHEN {
+        TURN { MOVE(playerLeft, MOVE_TACKLE, target: opponentLeft); }
+    } THEN {
+        u32 flags = gBattleTypeFlags;
+        u32 disobeyed = 0;
+        gBattleTypeFlags = BATTLE_TYPE_TRAINER | BATTLE_TYPE_DOUBLE;
+        for (u32 badge = FLAG_BADGE01_GET; badge <= FLAG_BADGE08_GET; badge++)
+            FlagClear(badge);
+        for (u32 outsider = 0; outsider < 2; outsider++)
+        {
+            for (u32 battler = 0; battler < MAX_BATTLERS_COUNT; battler++)
+            {
+                gBattlerAttacker = battler;
+                struct BattlePokemon original = gBattleMons[battler];
+                memcpy(&gBattleMons[battler].otId, gSaveBlock2Ptr->playerTrainerId, sizeof(gBattleMons[battler].otId));
+                gBattleMons[battler].otId ^= outsider;
+                StringCopy(gBattleMons[battler].otName, gSaveBlock2Ptr->playerName);
+                gBattleMons[battler].status1 = 0;
+                for (u32 level = 20; level <= 100; level += 80)
+                {
+                    gBattleMons[battler].level = gBattleMons[battler].metLevel = level;
+                    for (u32 seed = 0; seed < 256; seed++)
+                    {
+                        gCurrMovePos = gChosenMovePos = 0;
+                        gCurrentMove = gCalledMove = gBattleMons[battler].moves[0];
+                        // VBlank normally advances RNG independently of moves.
+                        u16 ime = REG_IME;
+                        REG_IME = 0;
+                        SeedRng(seed);
+                        rng_value_t before = gRngValue;
+                        enum Obedience result = GetAttackerObedienceForAction();
+                        rng_value_t after = gRngValue;
+                        REG_IME = ime;
+                        EXPECT_EQ(result, OBEYS);
+                        EXPECT_EQ(memcmp(&before, &after, sizeof(before)), 0);
+                        EXPECT_EQ(gCurrMovePos, 0);
+                        EXPECT_EQ(gChosenMovePos, 0);
+                        EXPECT_EQ(gCurrentMove, gBattleMons[battler].moves[0]);
+                        EXPECT_EQ(gCalledMove, gCurrentMove);
+                        EXPECT_EQ(gBattleMons[battler].status1, 0);
+                    }
+                }
+                gBattleMons[battler] = original;
+            }
+        }
+        // Negative control: these exact live flags must reach vanilla obedience
+        // once the Bondsaga runtime ends. This prevents a vacuous link-mode test.
+        BsgBbEnd();
+        gBattlerAttacker = GetBattlerAtPosition(B_POSITION_PLAYER_LEFT);
+        gBattleMons[gBattlerAttacker].level = gBattleMons[gBattlerAttacker].metLevel = 20;
+        for (u32 seed = 0; seed < 256; seed++)
+        {
+            SeedRng(seed);
+            gCurrMovePos = gChosenMovePos = 0;
+            if (GetAttackerObedienceForAction() != OBEYS) disobeyed++;
+        }
+        EXPECT_GT(disobeyed, 0);
+        gBattleTypeFlags = flags;
+    }
+}
+
+DOUBLE_BATTLE_TEST("Battle-Bound both player roles execute exact selected moves over repeated turns")
+{
+    GIVEN {
+        BsgBbBegin();
+        PLAYER(SPECIES_WOBBUFFET) { Level(20); Speed(100); Attack(1); SpAttack(1); Moves(MOVE_TACKLE, MOVE_SWIFT, MOVE_PROTECT, MOVE_CELEBRATE); }
+        PLAYER(SPECIES_SMEARGLE) { Level(20); Speed(90); Attack(1); SpAttack(1); Moves(MOVE_SLASH, MOVE_ICY_WIND, MOVE_PROTECT, MOVE_HELPING_HAND); }
+        OPPONENT(SPECIES_WOBBUFFET) { MaxHP(1000); HP(1000); Speed(10); }
+        OPPONENT(SPECIES_SMEARGLE) { MaxHP(1000); HP(1000); Speed(9); }
+    } WHEN {
+        for (u32 turn = 0; turn < 8; turn++)
+            TURN {
+                MOVE(playerLeft, turn % 2 ? MOVE_SWIFT : MOVE_TACKLE, target: opponentLeft);
+                MOVE(playerRight, turn % 2 ? MOVE_ICY_WIND : MOVE_SLASH, target: opponentRight);
+            }
+    } SCENE {
+        for (u32 turn = 0; turn < 8; turn++)
+        {
+            ANIMATION(ANIM_TYPE_MOVE, turn % 2 ? MOVE_SWIFT : MOVE_TACKLE, playerLeft);
+            ANIMATION(ANIM_TYPE_MOVE, turn % 2 ? MOVE_ICY_WIND : MOVE_SLASH, playerRight);
+        }
+    } THEN {
+        EXPECT_EQ(playerLeft->status1, 0);
+        EXPECT_EQ(playerRight->status1, 0);
+        EXPECT_EQ(playerLeft->pp[0], GetMovePP(MOVE_TACKLE) - 4);
+        EXPECT_EQ(playerLeft->pp[1], GetMovePP(MOVE_SWIFT) - 4);
+        EXPECT_EQ(playerRight->pp[0], GetMovePP(MOVE_SLASH) - 4);
+        EXPECT_EQ(playerRight->pp[1], GetMovePP(MOVE_ICY_WIND) - 4);
+    }
+}
+
+DOUBLE_BATTLE_TEST("Battle-Bound actual Spore still puts both player roles to Sleep")
+{
+    GIVEN {
+        BsgBbBegin();
+        PLAYER(SPECIES_WOBBUFFET) { Speed(100); }
+        PLAYER(SPECIES_SMEARGLE) { Speed(90); }
+        OPPONENT(SPECIES_WOBBUFFET) { Speed(10); }
+        OPPONENT(SPECIES_SMEARGLE) { Speed(9); }
+    } WHEN {
+        TURN { MOVE(opponentLeft, MOVE_SPORE, target: playerLeft); MOVE(opponentRight, MOVE_SPORE, target: playerRight); }
+    } SCENE {
+        ANIMATION(ANIM_TYPE_MOVE, MOVE_SPORE, opponentLeft);
+        MESSAGE("Wobbuffet fell asleep!");
+        STATUS_ICON(playerLeft, sleep: TRUE);
+        ANIMATION(ANIM_TYPE_MOVE, MOVE_SPORE, opponentRight);
+        MESSAGE("Smeargle fell asleep!");
+        STATUS_ICON(playerRight, sleep: TRUE);
+    } THEN {
+        EXPECT(playerLeft->status1 & STATUS1_SLEEP);
+        EXPECT(playerRight->status1 & STATUS1_SLEEP);
+    }
+}
 
 TEST("Battle-Bound designation validates canonical expedition references")
 {
