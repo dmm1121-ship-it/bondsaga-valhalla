@@ -120,7 +120,8 @@ jobs:
         run: make check -j$(nproc) -O TESTS="Battle-Bound"
       - name: Persistence runtime tests in mGBA
         run: make check -j$(nproc) -O TESTS="Bondsaga"
-      - name: Inherited support and guard regressions
+      - name: Inherited support, guard and Sleep regressions
         run: |
           make check -j$(nproc) -O TESTS="Helping Hand"
           make check -j$(nproc) -O TESTS="Protect"
+          make check -j$(nproc) -O TESTS="Hypnosis inflicts"

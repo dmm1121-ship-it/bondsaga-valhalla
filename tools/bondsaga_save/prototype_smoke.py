@@ -7,6 +7,7 @@ there are no memory writes, forced victories, or loaded emulator save states.
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 
@@ -39,13 +40,61 @@ proc = subprocess.Popen([str(Path(args.probe).resolve()), str(Path(args.rom).res
     text=True, env=env, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 assert proc.stdout.readline().strip() == 'READY'
 
+report = {'actions': [0, 0], 'targets': [], 'bond_break_seen': False,
+          'executed_moves': [[], [], [], []], 'obedience_messages': [], 'sleep_observations': 0}
+last_messages = [None] * 4
+string_names = re.findall(r'^\s+(STRINGID_\w+),',
+                         Path('include/constants/battle_string_ids.h').read_text(), re.M)
+forbidden = {string_names.index('STRINGID_' + name) for name in (
+    'PKMNIGNORESASLEEP', 'PKMNIGNOREDORDERS', 'PKMNBEGANTONAP', 'PKMNLOAFING',
+    'PKMNWONTOBEY', 'PKMNTURNEDAWAY', 'PKMNPRETENDNOTNOTICE')}
+
+def observe(data):
+    # Exact GBA ABI: BattlePokemon=140, status1=80; BattleResources.bufferA=16.
+    # These are frame-by-frame controller observations, not inferred from HP.
+    if not data[0]:
+        last_messages[:] = [None] * 4
+        return
+    status = [int.from_bytes(data[1 + i*4:5 + i*4], 'little') for i in range(4)]
+    if any(s & 7 for s in status):
+        report['sleep_observations'] += 1
+    flags = int.from_bytes(data[26:30], 'little')
+    for battler in range(4):
+        buffer = data[30 + battler*8:38 + battler*8]
+        message = buffer if flags & (1 << battler) and buffer[0] == 15 else None
+        if message and message != last_messages[battler]:
+            string_id = int.from_bytes(buffer[2:4], 'little')
+            if string_id in forbidden:
+                report['obedience_messages'].append(string_names[string_id])
+            if string_id == 4:  # STRINGID_USEDMOVE / CONTROLLER_PRINTSTRING
+                executed = int.from_bytes(buffer[4:6], 'little')
+                original = int.from_bytes(buffer[6:8], 'little')
+                selected = int.from_bytes(data[18 + battler*2:20 + battler*2], 'little')
+                report['executed_moves'][battler].append(executed)
+                if battler in (0, 2) and (executed != selected or executed != original):
+                    report.setdefault('substitutions', []).append([battler, selected, original, executed])
+        last_messages[battler] = message
+
 def command(text):
     proc.stdin.write(text + '\n')
     proc.stdin.flush()
     result = proc.stdout.readline().strip()
+    while result.startswith('TRACE '):
+        observe(bytes.fromhex(result[6:]))
+        result = proc.stdout.readline().strip()
     if result == 'ERROR' or not result:
         raise RuntimeError((text, result))
     return result
+
+# Observe every emulated frame, including narration and animations between taps.
+command(f"watch {symbols['sActive']:x} 0 1 0")
+for battler in range(4):
+    command(f"watch {symbols['gBattleMons']:x} {140*battler + 80} 4 0")
+command(f"watch {symbols['gBattlerAttacker']:x} 0 1 0")
+command(f"watch {symbols['gChosenMoveByBattler']:x} 0 8 0")
+command(f"watch {symbols['gBattleControllerExecFlags']:x} 0 4 0")
+for battler in range(4):
+    command(f"watch {symbols['gBattleResources']:x} {16 + battler*512} 8 1")
 
 def run(frames=20, keys=0):
     command(f'run {frames} {keys}')
@@ -82,7 +131,6 @@ def heap_free():
         assert head <= node < head + 0x1c500, 'Malformed heap chain'
     raise AssertionError('Heap chain did not terminate')
 
-report = {'actions': [0, 0], 'targets': [], 'bond_break_seen': False}
 try:
     for _ in range(30):
         if integer('sRunning'):
@@ -178,6 +226,10 @@ try:
     assert report['result'] in (1, 2, 3), report
     assert report['actions'][0] > 0 and report['actions'][1] > 0, report
     assert report['bond_break_seen'], report
+    assert not report['obedience_messages'], report
+    assert not report['sleep_observations'], report  # Fixture has no Sleep-inducing moves.
+    assert not report.get('substitutions'), report
+    assert len(report['executed_moves'][0]) >= 2 and len(report['executed_moves'][2]) >= 2, report
     assert read('sRecords', 336) == records, 'Canonical records changed'
     assert integer('sRoster', 2, 784) == args.bound, 'Bound designation changed'
     assert integer('gPartiesCount') == 0, 'Runtime party leaked into room'

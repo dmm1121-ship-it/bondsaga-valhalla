@@ -73,16 +73,86 @@ resolution remain in use. EXP is disabled for the disposable encounter.
 
 ## Validation
 
+### Delta obedience blocker and correction
+
+Delta testing of the original PR #2 build exposed a real integration failure.
+`CreateMonWithIVs` gives both owned normal creatures and the Trainer adapter a
+met level of 20. The fresh disposable session has no badges.
+`B_OBEDIENCE_MECHANICS = GEN_LATEST` includes the Gen 8+ owned-creature met-level
+rule, so `GetAttackerObedienceForAction` compares those combatants to the no-badge
+ceiling of 10. `CancelerObedience` can then discard a turn, substitute another
+move, inflict self damage, or run `BattleScript_IgnoresAndFallsAsleep`. Enemy
+controllers already bypass this via `BattlerHasAi`.
+
+The inherited path also assigns 16-bit `Random()` to `rnd`, then reads
+`(rnd >> 16) & 255` in its nap/self-hit branch. That value is always zero;
+when reached at level 20 without badges, it selects a nap whenever Sleep is
+allowed and no Uproar prevents it. This explains the repeated unprompted Sleep.
+The unrelated upstream random-number defect is not changed by this fix.
+
+The correction returns `OBEYS` immediately when `BsgBbActive()`, before any
+Pokémon ownership, badge, level, AI classification, random draw or obedience
+side effect. The Trainer compatibility shell never enters those checks.
+Normal move legality and status cancelers remain active; Spore can still put
+either player role to Sleep. No badges, levels, ownership values, damage or
+AI settings are changed. Outside this runtime the inherited policy remains.
+
+The former scripted doubles tests used recorded/link battle flags, which bypass
+obedience. The former button smoke test accepted a completed loss and did not
+verify executed moves. Neither was sufficient to detect this blocker.
+
+New regression coverage includes 4,096 direct policy calls spanning all four
+positions, owned/outsider identities, levels/met levels 20 and 100, no badges,
+256 seeds, and live trainer/doubles flags. It checks obedience, unchanged move
+selection/status and no RNG consumption (with VBlank excluded only during the
+atomic test observation). A negative control ends Bondsaga mode and confirms
+the same live flags reach inherited disobedience. An eight-turn battle checks
+both player roles' selected move animations and exact PP use; another verifies
+actual Spore-induced Sleep on both roles. Inherited Hypnosis duration/wake-up
+tests run separately in CI.
+
+The strengthened button smoke observes every frame's actual move-message
+controller payload, compares executed moves to their original/selected moves,
+rejects obedience messages, and rejects Sleep in this fixture (which has no
+Sleep-inducing moves). On the old immutable ROM it caught Water Gun becoming
+Protect, Slash becoming Helping Hand, and three obedience-driven naps. On the
+corrected local ROM, all three Bound choices completed victories with zero
+substitutions, obedience messages or Sleep observations. Outcomes are observed,
+not forced or required to be victories; this is not a balance certification.
+
+### Damage and AI audit
+
+No engine damage formula, move power, type chart, accuracy, critical-hit rule,
+enemy damage multiplier or AI setting was changed for the obedience fix.
+Prototype 0.1 intentionally substitutes the documented temporary Trainer stats
+(`30 + level + partner HP / 2`; other stats `level + partner stat / 2`), removes
+the adapter's ability, and assigns Normal typing and the four temporary moves.
+The same derivation applies to both sides. Ordinary fixtures use level 20,
+15 IVs and no trained EVs; these temporary inputs remain unchanged.
+
+The encounter borrows Calvin's `AI_FLAG_CHECK_BAD_MOVE`; the doubles engine adds
+`AI_FLAG_DOUBLE_BATTLE` (combined `0x81`). The Trainer controller uses ordinary
+AI move/target selection while excluding switching/items; no extra difficulty
+flags or omniscient AI were added. Inherited gimmicks remain explicitly off.
+
+Lost player turns and repeated naps gave the enemy uninterrupted actions and
+are the confirmed blocker. Other existing contributors include move/target RNG,
+Slash critical hits, STAB, low-HP starter abilities, and type matchups: Grovyle's
+Absorb is 4x effective against Marshtomp, for example. The five device battles
+were not recorded turn-by-turn, so their precise damage cannot be attributed
+solely to RNG or disobedience. No rebalancing is justified or performed here.
+
 The production-source host persistence suite remains unchanged: 18 groups and
 938,454 assertions, with Linux CI ASan/UBSan. Four inherited Bondsaga GBA tests
 exercise the foundation on the emulator target.
 
-Nine targeted Battle-Bound test groups cover canonical designation, immutable
+Twelve targeted Battle-Bound test groups cover the obedience/Sleep regressions
+above, canonical designation, immutable
 partner derivation, four independent actors/targets, guard/support effects,
 both sides' Bond Break, normal reserve switching after Bond Break, continuing
 with only a Trainer, and final victory/defeat. They also reject every inherited
 gimmick in the prototype. Run `make check TESTS="Battle-Bound"`. CI separately
-runs Bondsaga, Helping Hand and Protect filters, plus the repository's existing
+runs Bondsaga, Helping Hand, Protect and Hypnosis filters, plus the repository's existing
 full build/test workflow. Check the draft PR for exact-head results.
 
 `tools/bondsaga_save/mgba_probe.c` and `prototype_smoke.py` exercise the actual
@@ -119,11 +189,15 @@ combat scope without changing the ordinary engine outside Battle-Bound.
 ## Memory and remaining gates
 
 The workflow compares `831c6ad4` with the candidate using one toolchain and
-publishes exact ROM/static RAM deltas. Local final gameplay build uses 26,741,228
+publishes exact ROM/static RAM deltas. The corrected local gameplay build uses 26,741,228
 linker ROM bytes, 229,616 EWRAM bytes and 28,388 IWRAM bytes; these compiler-specific
 totals must not be subtracted from a differently compiled baseline. An earlier
 same-toolchain CI comparison measured +3,196 bytes EWRAM and no IWRAM increase;
 the exact candidate ROM delta is in the workflow artifact.
+The obedience correction changes none of these local linked-region totals
+relative to the old PR #2 build (the added guard fits within ROM alignment).
+It adds no persistent fields, static RAM or heap allocations. Probe watches
+and the additional test state exist only in host/test programs, not the ROM.
 
 The new static EWRAM includes 336 canonical wire bytes, an 804-byte roster view,
 a 2,048-byte room tilemap, and small lifecycle/UI state plus alignment. The room
